@@ -1,5 +1,11 @@
 # vscode-newman-tcp-proxy
 
+[![Version](https://img.shields.io/visual-studio-marketplace/v/CaldiaWorks.vscode-newman-tcp-proxy)](https://marketplace.visualstudio.com/items?itemName=CaldiaWorks.vscode-newman-tcp-proxy)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/CaldiaWorks.vscode-newman-tcp-proxy)](https://marketplace.visualstudio.com/items?itemName=CaldiaWorks.vscode-newman-tcp-proxy)
+[![Open VSX](https://img.shields.io/open-vsx/v/CaldiaWorks/vscode-newman-tcp-proxy)](https://open-vsx.org/extension/CaldiaWorks/vscode-newman-tcp-proxy)
+[![Build Status](https://github.com/CaldiaWorks/vscode-newman-tcp-proxy/actions/workflows/publish.yml/badge.svg)](https://github.com/CaldiaWorks/vscode-newman-tcp-proxy/actions/workflows/publish.yml)
+[![License](https://img.shields.io/github/license/CaldiaWorks/vscode-newman-tcp-proxy)](https://github.com/CaldiaWorks/vscode-newman-tcp-proxy/blob/main/LICENSE)
+
 **VS Code extension for running Newman tests through an integrated TCP proxy**
 
 Local Newman と VS Code を連携させ、TCP プロキシを経由して API テストを実行・検査するための拡張機能です。
