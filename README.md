@@ -11,6 +11,11 @@
 Local Newman と VS Code を連携させ、TCP プロキシを経由して API テストを実行・検査するための拡張機能です。
 Postman の機能限定版のような体験を VS Code 内で提供します。
 
+## Install
+
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=CaldiaWorks.vscode-newman-tcp-proxy)
+- [Open VSX Registry](https://open-vsx.org/extension/CaldiaWorks/vscode-newman-tcp-proxy)
+
 ## Features
 
 - **TCP Proxy Server**: VS Code 内で動作する軽量 TCP プロキシサーバー。
@@ -23,6 +28,16 @@ Postman の機能限定版のような体験を VS Code 内で提供します。
 
 - **Node.js**: v16 以上
 - **Newman CLI**: `npm install -g newman` (パスが通っている必要があります)
+
+## HTTP to TCP Conversion Features
+
+このプロキシはクライアントからの HTTP リクエストを解析し、実効データのみをターゲットの TCP サーバーに転送します。
+
+- **Raw Data**: `Content-Type: text/plain` など通常の HTTP ボディはヘッダーを除去してそのままバイナリとして送信されます。
+- **JSON Hex Command**: `Content-Type: application/json` で `{ "command": "48656c6c6f" }` のような JSON を送信すると、`command` 値を HEX デコードしたバイナリデータが送信されます。
+- **Multipart File**: `multipart/form-data` でファイル (`file` フィールド) を送信すると、ファイルの中身のみが抽出されバイナリとして送信されます。
+
+> **Note**: ターゲットサーバーとの接続は、プロキシ開始時に確立され、維持されます。
 
 ## Usage
 

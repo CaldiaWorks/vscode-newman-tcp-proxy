@@ -1,0 +1,86 @@
+openapi: 3.0.0
+info:
+  title: Newman TCP Proxy API
+  description: |
+    VS Code Extension `vscode-newman-tcp-proxy` が提供するプロキシサーバーのAPI仕様です。
+    クライアント（Newman/Postman等）からのHTTPリクエストを受け付け、
+    指定された形式に従って実効データ（Payload）のみを抽出し、ターゲットTCPサーバーへ転送します。
+  version: 1.0.0
+servers:
+  - url: http://localhost:{port}
+    description: Local Proxy Server (Port is configured in VS Code)
+    variables:
+      port:
+        default: "9000"
+        description: The local port number the proxy is listening on.
+
+paths:
+  /:
+    post:
+      summary: Send Data to TCP Target
+      description: |
+        リクエストボディを受け取り、ターゲットTCPサーバーへ転送します。
+        Content-Type ヘッダーによって処理が異なります。
+
+        ターゲットサーバーからの応答は HTTP レスポンスボディとして返却されます。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - command
+              properties:
+                command:
+                  type: string
+                  description: 送信するバイナリデータをHEX文字列表現したもの。
+                  example: "48656c6c6f" # "Hello"
+                  pattern: "^[0-9A-Fa-f]+$"
+            description: |
+              HEX文字列を含んだJSONオブジェクト。
+              `command` フィールドの値がデコードされ、バイナリとして送信されます。
+
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 送信するバイナリファイル。
+            description: |
+              ファイルアップロード形式。
+              アップロードされたファイルの中身（バイナリ）のみが抽出され、送信されます。
+              フィールド名は `file` を推奨しますが、実装上は最初に見つかったファイルを使用します。
+
+          text/plain:
+            schema:
+              type: string
+              example: "RawTextData"
+            description: |
+              生のテキストデータ。
+              HTTPヘッダーを除去し、UTF-8テキストとしてそのまま送信されます。
+
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+            description: |
+              生のバイナリデータ。
+              HTTPヘッダーを除去し、そのまま送信されます。
+
+      responses:
+        "200":
+          description: Data forwarded and response received from TCP target.
+          content:
+            application/snowflake: # TCP stream can be anything
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Bad Request. (e.g., Invalid Hex string, Malformed JSON)
+        "500":
+          description: Internal Server Error.
+        "502":
+          description: Bad Gateway. (Target TCP server not connected)
