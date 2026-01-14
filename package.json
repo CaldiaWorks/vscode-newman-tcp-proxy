@@ -1,8 +1,14 @@
 {
   "name": "vscode-newman-tcp-proxy",
+  "publisher": "CaldiaWorks",
   "displayName": "Newman TCP Proxy",
+  "icon": "images/icon.png",
   "description": "VS Code extension for running Newman tests through an integrated TCP proxy",
-  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Caldia-Apps/vscode-newman-tcp-proxy.git"
+  },
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.80.0"
   },
