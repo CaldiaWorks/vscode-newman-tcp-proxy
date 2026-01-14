@@ -6,12 +6,14 @@ export type WebviewCommand =
     | { command: 'stopProxy'; }
     | { command: 'clearLogs'; }
     | { command: 'selectCollection'; }
-    | { command: 'runNewman'; collectionPath: string; };
+    | { command: 'runNewman'; collectionPath: string; }
+    | { command: 'webviewReady'; };
 
 // Backend -> Frontend
 export type ExtensionMessage = 
-    | { type: 'proxyStatus'; status: 'running' | 'stopped'; }
+    | { type: 'proxyStatus'; status: 'running' | 'stopped'; config?: { localPort: number; targetHost: string; targetPort: number; }; }
     | { type: 'proxyEvent'; event: ProxyEvent; }
+    | { type: 'batchProxyEvents'; events: ProxyEvent[]; }
     | { type: 'error'; message: string; }
     | { type: 'collectionSelected'; path: string; }
     | { type: 'newmanResult'; output: string; success: boolean; };

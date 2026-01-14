@@ -7,6 +7,10 @@ import { ProxyEvent } from './proxy/ProxyInterface';
 let currentPanel: vscode.WebviewPanel | undefined = undefined;
 let proxyServer: TcpProxyServer | undefined = undefined;
 let currentProxyPort: number = 9000; // Default or updated on start
+let currentTargetHost: string = '127.0.0.1';
+let currentTargetPort: number = 8080;
+let logBuffer: ProxyEvent[] = [];
+const MAX_LOG_SIZE = 1000;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Extension "vscode-newman-tcp-proxy" is active!');
@@ -14,9 +18,21 @@ export function activate(context: vscode.ExtensionContext) {
     // Initialize Proxy Server
     proxyServer = new TcpProxyServer();
     proxyServer.on('event', (event: ProxyEvent) => {
+        // Buffer logs
+        logBuffer.push(event);
+        if (logBuffer.length > MAX_LOG_SIZE) {
+            logBuffer.shift();
+        }
+
         if (currentPanel) {
             const message: ExtensionMessage = { type: 'proxyEvent', event };
             currentPanel.webview.postMessage(message);
+
+            // Handle automatic stop when target disconnects
+            if (event.type === 'close' && event.source === 'target') {
+                currentPanel.webview.postMessage({ type: 'proxyStatus', status: 'stopped' } as ExtensionMessage);
+                vscode.window.showWarningMessage('Target server disconnected. Proxy stopped.');
+            }
         }
     });
 
@@ -37,21 +53,55 @@ export function activate(context: vscode.ExtensionContext) {
 
             currentPanel.webview.html = getWebviewContent(currentPanel.webview, context.extensionUri);
 
-            // Sync initial state
-            if (proxyServer && proxyServer.isRunning) {
-                currentPanel.webview.postMessage({ type: 'proxyStatus', status: 'running' } as ExtensionMessage);
-            }
+            // Sync initial state logic is moved to 'webviewReady' handler
+            // because posting immediately here often races with React hydration.
 
             // Handle messages from Webview
             currentPanel.webview.onDidReceiveMessage(
                 async (message: WebviewCommand) => {
                     switch (message.command) {
+                        case 'webviewReady':
+                            // Sync state now that frontend is ready
+                            if (proxyServer && proxyServer.isRunning) {
+                                currentPanel?.webview.postMessage({ 
+                                    type: 'proxyStatus', 
+                                    status: 'running',
+                                    config: {
+                                        localPort: currentProxyPort,
+                                        targetHost: currentTargetHost,
+                                        targetPort: currentTargetPort
+                                    }
+                                } as ExtensionMessage);
+                            } else {
+                                currentPanel?.webview.postMessage({ type: 'proxyStatus', status: 'stopped' } as ExtensionMessage);
+                            }
+                            // Send buffered logs
+                            if (logBuffer.length > 0) {
+                                currentPanel?.webview.postMessage({ 
+                                    type: 'batchProxyEvents', 
+                                    events: logBuffer 
+                                } as ExtensionMessage);
+                            }
+                            break;
                         case 'startProxy':
                             try {
                                 if (proxyServer) {
+                                    // Clear buffer on fresh start if desired, or keep history.
+                                    // Keeping history is safer, but clear on explicit start might be expected.
+                                    // Let's keep history for now unless user clears.
                                     await proxyServer.start(message.localPort, message.targetHost, message.targetPort);
                                     currentProxyPort = message.localPort;
-                                    currentPanel?.webview.postMessage({ type: 'proxyStatus', status: 'running' } as ExtensionMessage);
+                                    currentTargetHost = message.targetHost;
+                                    currentTargetPort = message.targetPort;
+                                    currentPanel?.webview.postMessage({ 
+                                        type: 'proxyStatus', 
+                                        status: 'running',
+                                        config: {
+                                            localPort: currentProxyPort,
+                                            targetHost: currentTargetHost,
+                                            targetPort: currentTargetPort
+                                        }
+                                    } as ExtensionMessage);
                                     vscode.window.showInformationMessage(`Proxy started on port ${message.localPort}`);
                                 }
                             } catch (err: any) {
@@ -120,7 +170,7 @@ export function activate(context: vscode.ExtensionContext) {
                             }
                             break;
                         case 'clearLogs':
-                            // Handle clear logs if needed on backend side (e.g. clearing buffer)
+                            logBuffer = []; // Clear backend buffer
                             break;
                     }
                 },

@@ -6,14 +6,23 @@ provideVSCodeDesignSystem().register(vsCodeTextField(), vsCodeDivider());
 
 interface ProxyControlProps {
     status: 'running' | 'stopped';
+    config?: { localPort: number; targetHost: string; targetPort: number; };
     onStart: (localPort: number, targetHost: string, targetPort: number) => void;
     onStop: () => void;
 }
 
-const ProxyControl: React.FC<ProxyControlProps> = ({ status, onStart, onStop }) => {
+const ProxyControl: React.FC<ProxyControlProps> = ({ status, config, onStart, onStop }) => {
     const [localPort, setLocalPort] = React.useState('9000');
     const [targetHost, setTargetHost] = React.useState('127.0.0.1');
     const [targetPort, setTargetPort] = React.useState('8080');
+
+    React.useEffect(() => {
+        if (config) {
+            setLocalPort(config.localPort.toString());
+            setTargetHost(config.targetHost);
+            setTargetPort(config.targetPort.toString());
+        }
+    }, [config]);
 
     const handleStart = () => {
         onStart(parseInt(localPort), targetHost, parseInt(targetPort));

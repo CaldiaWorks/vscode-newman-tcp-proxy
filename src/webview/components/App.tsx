@@ -14,6 +14,7 @@ const vscode = acquireVsCodeApi();
 
 const App: React.FC = () => {
     const [status, setStatus] = React.useState<'running' | 'stopped'>('stopped');
+    const [proxyConfig, setProxyConfig] = React.useState<{ localPort: number; targetHost: string; targetPort: number; } | undefined>(undefined);
     const [events, setEvents] = React.useState<ProxyEvent[]>([]);
     
     // Newman State
@@ -28,9 +29,15 @@ const App: React.FC = () => {
             switch (message.type) {
                 case 'proxyStatus':
                     setStatus(message.status);
+                    if (message.config) {
+                        setProxyConfig(message.config);
+                    }
                     break;
                 case 'proxyEvent':
                     setEvents(prev => [...prev, message.event]);
+                    break;
+                case 'batchProxyEvents':
+                    setEvents(message.events);
                     break;
                 case 'collectionSelected':
                     setCollectionPath(message.path);
@@ -57,6 +64,10 @@ const App: React.FC = () => {
         };
 
         window.addEventListener('message', handleMessage);
+        
+        // Signal that Webview is ready to receive state
+        vscode.postMessage({ command: 'webviewReady' } as WebviewCommand);
+
         return () => window.removeEventListener('message', handleMessage);
     }, []);
 
@@ -98,6 +109,7 @@ const App: React.FC = () => {
             
             <ProxyControl 
                 status={status} 
+                config={proxyConfig}
                 onStart={handleStart} 
                 onStop={handleStop} 
             />
