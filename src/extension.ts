@@ -37,6 +37,11 @@ export function activate(context: vscode.ExtensionContext) {
 
             currentPanel.webview.html = getWebviewContent(currentPanel.webview, context.extensionUri);
 
+            // Sync initial state
+            if (proxyServer && proxyServer.isRunning) {
+                currentPanel.webview.postMessage({ type: 'proxyStatus', status: 'running' } as ExtensionMessage);
+            }
+
             // Handle messages from Webview
             currentPanel.webview.onDidReceiveMessage(
                 async (message: WebviewCommand) => {

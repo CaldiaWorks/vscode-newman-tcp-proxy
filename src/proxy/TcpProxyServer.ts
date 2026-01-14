@@ -13,6 +13,10 @@ export class TcpProxyServer extends EventEmitter {
         this.logger = logger || null;
     }
 
+    public get isRunning(): boolean {
+        return this.server !== null;
+    }
+
     public start(localPort: number, targetHost: string, targetPort: number): Promise<void> {
         return new Promise((resolve, reject) => {
             this.server = net.createServer((clientSocket) => {
