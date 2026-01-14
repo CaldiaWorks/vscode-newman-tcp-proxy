@@ -194,7 +194,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri) {
-    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'out', 'webview.js'));
+    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js'));
     const nonce = getNonce();
 
     return `<!DOCTYPE html>

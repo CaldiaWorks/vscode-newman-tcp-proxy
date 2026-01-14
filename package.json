@@ -16,7 +16,7 @@
     "Other"
   ],
   "activationEvents": [],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
@@ -26,12 +26,10 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile-webview && npm run compile",
-    "compile": "tsc -p ./",
-    "compile-webview": "webpack --mode development",
-    "watch": "tsc -watch -p ./",
-    "watch-webview": "webpack --mode development --watch",
-    "pretest": "npm run compile-webview && npm run compile && npm run lint",
+    "vscode:prepublish": "webpack --mode production",
+    "compile": "webpack --mode development",
+    "watch": "webpack --mode development --watch",
+    "pretest": "webpack --mode development && tsc -p ./ && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
   },
