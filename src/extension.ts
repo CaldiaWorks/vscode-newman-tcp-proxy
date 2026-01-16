@@ -74,7 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
                                 config: {
                                     localPort: currentProxyPort,
                                     targetHost: currentTargetHost,
-                                    targetPort: currentTargetPort
+                                    targetPort: currentTargetPort,
+                                    hexString: context.workspaceState.get<string>('hexString') || ''
                                 }
                             } as ExtensionMessage);
 
@@ -182,6 +183,28 @@ export function activate(context: vscode.ExtensionContext) {
                             break;
                         case 'clearLogs':
                             logBuffer = []; // Clear backend buffer
+                            break;
+                        case 'sendBinary':
+                            if (!proxyServer || !proxyServer.isRunning) {
+                                vscode.window.showErrorMessage('Proxy is not running.');
+                                return;
+                            }
+                            try {
+                                const hex = message.hexString;
+                                if (!/^[0-9A-Fa-f]*$/.test(hex)) {
+                                    throw new Error('Invalid hex string');
+                                }
+                                const buffer = Buffer.from(hex, 'hex');
+                                await proxyServer.sendToTarget(buffer);
+                                vscode.window.showInformationMessage(`Sent ${buffer.length} bytes to target.`);
+                            } catch (err: any) {
+                                vscode.window.showErrorMessage(`Failed to send data: ${err.message}`);
+                                currentPanel?.webview.postMessage({ type: 'error', message: err.message } as ExtensionMessage);
+                            }
+                            break;
+                        case 'saveBinaryState':
+                            // Persist hex string
+                            await context.workspaceState.update('hexString', message.hexString);
                             break;
                     }
                 },

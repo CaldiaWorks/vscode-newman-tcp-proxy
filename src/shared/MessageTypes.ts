@@ -7,11 +7,13 @@ export type WebviewCommand =
     | { command: 'clearLogs'; }
     | { command: 'selectCollection'; }
     | { command: 'runNewman'; collectionPath: string; }
+    | { command: 'sendBinary'; hexString: string; }
+    | { command: 'saveBinaryState'; hexString: string; }
     | { command: 'webviewReady'; };
 
 // Backend -> Frontend
 export type ExtensionMessage = 
-    | { type: 'proxyStatus'; status: 'running' | 'stopped'; config?: { localPort: number; targetHost: string; targetPort: number; }; }
+    | { type: 'proxyStatus'; status: 'running' | 'stopped'; config?: { localPort: number; targetHost: string; targetPort: number; hexString?: string; }; }
     | { type: 'proxyEvent'; event: ProxyEvent; }
     | { type: 'batchProxyEvents'; events: ProxyEvent[]; }
     | { type: 'error'; message: string; }

@@ -327,6 +327,46 @@ export class TcpProxyServer extends EventEmitter {
         });
     }
 
+    public async sendToTarget(data: Buffer): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (!this.targetSocket || this.targetSocket.destroyed) {
+                reject(new Error('Target is not connected'));
+                return;
+            }
+
+            // Log injection
+            const connectionId = this.targetConnectionId || 'unknown';
+            this.emitProxyEvent({
+                id: connectionId,
+                timestamp: Date.now(),
+                type: 'data',
+                source: 'client', // Using client to mean "injected from client side"
+                data: data,
+                info: 'Manual Binary Injection'
+            });
+
+            const success = this.targetSocket.write(data as Uint8Array, (err) => {
+                if (err) {
+                    this.emitProxyEvent({
+                        id: connectionId,
+                        timestamp: Date.now(),
+                        type: 'error',
+                        source: 'target',
+                        info: `Send error: ${err.message}`
+                    });
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
+
+            if (!success) {
+                // If write returns false, we should technically wait for 'drain' but for small commands usually fine.
+                // Keeping it simple for now as per minimal impl.
+            }
+        });
+    }
+
     public stop(): Promise<void> {
         return new Promise((resolve, reject) => {
             if (this.targetSocket) {

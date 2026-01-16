@@ -7,6 +7,24 @@ interface TrafficLogProps {
     onClear: () => void;
 }
 
+const formatData = (data: any): string => {
+    if (typeof data === 'string') {
+        return data;
+    }
+    // Handle Node Buffer JSON representation
+    if (data && data.type === 'Buffer' && Array.isArray(data.data)) {
+        return data.data.map((b: number) => b.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+    }
+    // Handle standard array/Uint8Array if applicable
+    if (Array.isArray(data) || data instanceof Uint8Array) {
+         return Array.from(data).map((b: any) => {
+             if (typeof b === 'number') return b.toString(16).padStart(2, '0');
+             return '?';
+         }).join(' ').toUpperCase();
+    }
+    return '[Binary Data]';
+};
+
 const TrafficLog: React.FC<TrafficLogProps> = ({ events, onClear }) => {
     const listRef = React.useRef<HTMLDivElement>(null);
 
@@ -38,7 +56,7 @@ const TrafficLog: React.FC<TrafficLogProps> = ({ events, onClear }) => {
                             {evt.info && <div style={{ paddingLeft: '20px', color: 'var(--vscode-descriptionForeground)' }}>{evt.info}</div>}
                             {evt.data && (
                                 <div style={{ paddingLeft: '20px', whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto', background: 'var(--vscode-textBlockQuote-background)', margin: '4px 0' }}>
-                                    {typeof evt.data === 'string' ? evt.data : '[Binary Data]'}
+                                    {formatData(evt.data)}
                                 </div>
                             )}
                         </div>

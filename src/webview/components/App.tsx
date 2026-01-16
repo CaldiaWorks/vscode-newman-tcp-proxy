@@ -4,6 +4,7 @@ import { provideVSCodeDesignSystem, vsCodeButton, vsCodeTag, vsCodePanelTab, vsC
 import ProxyControl from './ProxyControl';
 import TrafficLog from './TrafficLog';
 import NewmanControl from './NewmanControl';
+import BinarySender from './BinarySender';
 import { WebviewCommand, ExtensionMessage } from '../../shared/MessageTypes';
 import { ProxyEvent } from '../../proxy/ProxyInterface';
 
@@ -31,6 +32,9 @@ const App: React.FC = () => {
                     setStatus(message.status);
                     if (message.config) {
                         setProxyConfig(message.config);
+                        if (message.config.hexString !== undefined) {
+                            setInitialHex(message.config.hexString);
+                        }
                     }
                     break;
                 case 'proxyEvent':
@@ -103,6 +107,22 @@ const App: React.FC = () => {
         vscode.postMessage({ command: 'runNewman', collectionPath: path } as WebviewCommand);
     };
 
+    const [initialHex, setInitialHex] = React.useState('');
+
+    const handleSendBinary = (hexString: string) => {
+        vscode.postMessage({
+            command: 'sendBinary',
+            hexString
+        } as WebviewCommand);
+    };
+
+    const handleSaveBinaryState = (hexString: string) => {
+        vscode.postMessage({
+            command: 'saveBinaryState',
+            hexString
+        } as WebviewCommand);
+    };
+
     return (
         <div style={{ padding: '20px', height: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
             <h1 style={{ margin: '0 0 20px 0' }}>Newman TCP Proxy</h1>
@@ -112,6 +132,13 @@ const App: React.FC = () => {
                 config={proxyConfig}
                 onStart={handleStart} 
                 onStop={handleStop} 
+            />
+
+            <BinarySender 
+                isRunning={status === 'running'}
+                onSend={handleSendBinary}
+                onSaveState={handleSaveBinaryState}
+                initialValue={initialHex}
             />
 
             <NewmanControl

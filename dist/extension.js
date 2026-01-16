@@ -2279,6 +2279,43 @@ class TcpProxyServer extends events_1.EventEmitter {
             req.on('error', reject);
         });
     }
+    async sendToTarget(data) {
+        return new Promise((resolve, reject) => {
+            if (!this.targetSocket || this.targetSocket.destroyed) {
+                reject(new Error('Target is not connected'));
+                return;
+            }
+            // Log injection
+            const connectionId = this.targetConnectionId || 'unknown';
+            this.emitProxyEvent({
+                id: connectionId,
+                timestamp: Date.now(),
+                type: 'data',
+                source: 'client', // Using client to mean "injected from client side"
+                data: data,
+                info: 'Manual Binary Injection'
+            });
+            const success = this.targetSocket.write(data, (err) => {
+                if (err) {
+                    this.emitProxyEvent({
+                        id: connectionId,
+                        timestamp: Date.now(),
+                        type: 'error',
+                        source: 'target',
+                        info: `Send error: ${err.message}`
+                    });
+                    reject(err);
+                }
+                else {
+                    resolve();
+                }
+            });
+            if (!success) {
+                // If write returns false, we should technically wait for 'drain' but for small commands usually fine.
+                // Keeping it simple for now as per minimal impl.
+            }
+        });
+    }
     stop() {
         return new Promise((resolve, reject) => {
             if (this.targetSocket) {
@@ -2504,6 +2541,10 @@ let logBuffer = [];
 const MAX_LOG_SIZE = 1000;
 function activate(context) {
     console.log('Extension "vscode-newman-tcp-proxy" is active!');
+    // Load persisted state or use defaults
+    currentProxyPort = context.workspaceState.get('localPort') || 9000;
+    currentTargetHost = context.workspaceState.get('targetHost') || '127.0.0.1';
+    currentTargetPort = context.workspaceState.get('targetPort') || 8080;
     // Initialize Proxy Server
     proxyServer = new TcpProxyServer_1.TcpProxyServer();
     proxyServer.on('event', (event) => {
@@ -2529,7 +2570,7 @@ function activate(context) {
         else {
             currentPanel = vscode.window.createWebviewPanel('newmanTcpProxy', 'Newman TCP Proxy', vscode.ViewColumn.One, {
                 enableScripts: true,
-                localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'out')],
+                localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist')],
                 retainContextWhenHidden: true
             });
             currentPanel.webview.html = getWebviewContent(currentPanel.webview, context.extensionUri);
@@ -2540,20 +2581,17 @@ function activate(context) {
                 switch (message.command) {
                     case 'webviewReady':
                         // Sync state now that frontend is ready
-                        if (proxyServer && proxyServer.isRunning) {
-                            currentPanel?.webview.postMessage({
-                                type: 'proxyStatus',
-                                status: 'running',
-                                config: {
-                                    localPort: currentProxyPort,
-                                    targetHost: currentTargetHost,
-                                    targetPort: currentTargetPort
-                                }
-                            });
-                        }
-                        else {
-                            currentPanel?.webview.postMessage({ type: 'proxyStatus', status: 'stopped' });
-                        }
+                        // Always send current config, whether running or stopped
+                        currentPanel?.webview.postMessage({
+                            type: 'proxyStatus',
+                            status: proxyServer && proxyServer.isRunning ? 'running' : 'stopped',
+                            config: {
+                                localPort: currentProxyPort,
+                                targetHost: currentTargetHost,
+                                targetPort: currentTargetPort,
+                                hexString: context.workspaceState.get('hexString') || ''
+                            }
+                        });
                         // Send buffered logs
                         if (logBuffer.length > 0) {
                             currentPanel?.webview.postMessage({
@@ -2565,13 +2603,18 @@ function activate(context) {
                     case 'startProxy':
                         try {
                             if (proxyServer) {
+                                // Save state
+                                await context.workspaceState.update('localPort', message.localPort);
+                                await context.workspaceState.update('targetHost', message.targetHost);
+                                await context.workspaceState.update('targetPort', message.targetPort);
+                                // Update current variables
+                                currentProxyPort = message.localPort;
+                                currentTargetHost = message.targetHost;
+                                currentTargetPort = message.targetPort;
                                 // Clear buffer on fresh start if desired, or keep history.
                                 // Keeping history is safer, but clear on explicit start might be expected.
                                 // Let's keep history for now unless user clears.
                                 await proxyServer.start(message.localPort, message.targetHost, message.targetPort);
-                                currentProxyPort = message.localPort;
-                                currentTargetHost = message.targetHost;
-                                currentTargetPort = message.targetPort;
                                 currentPanel?.webview.postMessage({
                                     type: 'proxyStatus',
                                     status: 'running',
@@ -2650,6 +2693,29 @@ function activate(context) {
                         break;
                     case 'clearLogs':
                         logBuffer = []; // Clear backend buffer
+                        break;
+                    case 'sendBinary':
+                        if (!proxyServer || !proxyServer.isRunning) {
+                            vscode.window.showErrorMessage('Proxy is not running.');
+                            return;
+                        }
+                        try {
+                            const hex = message.hexString;
+                            if (!/^[0-9A-Fa-f]*$/.test(hex)) {
+                                throw new Error('Invalid hex string');
+                            }
+                            const buffer = Buffer.from(hex, 'hex');
+                            await proxyServer.sendToTarget(buffer);
+                            vscode.window.showInformationMessage(`Sent ${buffer.length} bytes to target.`);
+                        }
+                        catch (err) {
+                            vscode.window.showErrorMessage(`Failed to send data: ${err.message}`);
+                            currentPanel?.webview.postMessage({ type: 'error', message: err.message });
+                        }
+                        break;
+                    case 'saveBinaryState':
+                        // Persist hex string
+                        await context.workspaceState.update('hexString', message.hexString);
                         break;
                 }
             }, undefined, context.subscriptions);

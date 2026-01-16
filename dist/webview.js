@@ -41476,7 +41476,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _ProxyControl__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./ProxyControl */ "./src/webview/components/ProxyControl.tsx");
 /* harmony import */ var _TrafficLog__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./TrafficLog */ "./src/webview/components/TrafficLog.tsx");
 /* harmony import */ var _NewmanControl__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./NewmanControl */ "./src/webview/components/NewmanControl.tsx");
+/* harmony import */ var _BinarySender__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./BinarySender */ "./src/webview/components/BinarySender.tsx");
 /// <reference path="../types.d.ts" />
+
 
 
 
@@ -41502,6 +41504,9 @@ const App = () => {
                     setStatus(message.status);
                     if (message.config) {
                         setProxyConfig(message.config);
+                        if (message.config.hexString !== undefined) {
+                            setInitialHex(message.config.hexString);
+                        }
                     }
                     break;
                 case 'proxyEvent':
@@ -41564,14 +41569,91 @@ const App = () => {
         setNewmanOutput('');
         vscode.postMessage({ command: 'runNewman', collectionPath: path });
     };
+    const [initialHex, setInitialHex] = react__WEBPACK_IMPORTED_MODULE_0__.useState('');
+    const handleSendBinary = (hexString) => {
+        vscode.postMessage({
+            command: 'sendBinary',
+            hexString
+        });
+    };
+    const handleSaveBinaryState = (hexString) => {
+        vscode.postMessage({
+            command: 'saveBinaryState',
+            hexString
+        });
+    };
     return (react__WEBPACK_IMPORTED_MODULE_0__.createElement("div", { style: { padding: '20px', height: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' } },
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("h1", { style: { margin: '0 0 20px 0' } }, "Newman TCP Proxy"),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(_ProxyControl__WEBPACK_IMPORTED_MODULE_7__["default"], { status: status, config: proxyConfig, onStart: handleStart, onStop: handleStop }),
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement(_BinarySender__WEBPACK_IMPORTED_MODULE_10__["default"], { isRunning: status === 'running', onSend: handleSendBinary, onSaveState: handleSaveBinaryState, initialValue: initialHex }),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(_NewmanControl__WEBPACK_IMPORTED_MODULE_9__["default"], { collectionPath: collectionPath, onSelectCollection: handleSelectCollection, onRunNewman: handleRunNewman, isRunning: isNewmanRunning, proxyStatus: status }),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(_TrafficLog__WEBPACK_IMPORTED_MODULE_8__["default"], { events: events, onClear: handleClearLogs })));
 };
 // End Type Definition
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (App);
+
+
+/***/ },
+
+/***/ "./src/webview/components/BinarySender.tsx"
+/*!*************************************************!*\
+  !*** ./src/webview/components/BinarySender.tsx ***!
+  \*************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+
+const BinarySender = ({ isRunning, onSend, onSaveState, initialValue }) => {
+    const [hexString, setHexString] = react__WEBPACK_IMPORTED_MODULE_0__.useState(initialValue);
+    const [error, setError] = react__WEBPACK_IMPORTED_MODULE_0__.useState('');
+    // Update local state if initialValue updates (active config load)
+    react__WEBPACK_IMPORTED_MODULE_0__.useEffect(() => {
+        if (initialValue) {
+            setHexString(initialValue);
+        }
+    }, [initialValue]);
+    // Debounce save state
+    react__WEBPACK_IMPORTED_MODULE_0__.useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            onSaveState(hexString);
+        }, 1000);
+        return () => clearTimeout(timeoutId);
+    }, [hexString]);
+    const handleSend = () => {
+        if (!hexString)
+            return;
+        // Basic validation
+        if (!/^[0-9A-Fa-f]*$/.test(hexString)) {
+            setError('Invalid Hex String (0-9, A-F only)');
+            return;
+        }
+        setError('');
+        onSend(hexString);
+    };
+    const handleChange = (e) => {
+        const value = e.target.value;
+        const cleanValue = value.replace(/\s/g, '');
+        setHexString(cleanValue);
+        if (cleanValue && !/^[0-9A-Fa-f]*$/.test(cleanValue)) {
+            setError('Invalid Hex String');
+        }
+        else {
+            setError('');
+        }
+    };
+    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px', border: '1px solid var(--vscode-widget-border)', borderRadius: '4px', marginBottom: '20px' } },
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement("h3", { style: { margin: '0 0 10px 0' } }, "Manual Binary Injection"),
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement("vscode-text-field", { placeholder: "48656c6c6f (Hex string)", value: hexString, onInput: handleChange, style: { width: '100%' } }, "Hex Data"),
+        error && react__WEBPACK_IMPORTED_MODULE_0__.createElement("span", { style: { color: 'var(--vscode-errorForeground)', fontSize: '12px' } }, error),
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end' } },
+            react__WEBPACK_IMPORTED_MODULE_0__.createElement("vscode-button", { onClick: handleSend, disabled: !isRunning || !hexString || !!error }, "Send to Target"))));
+};
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (BinarySender);
 
 
 /***/ },
